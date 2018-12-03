@@ -1,0 +1,55 @@
+#!/usr/bin/python
+# -*- encoding: utf-8; py-indent-offset: 4 -*-
+#
+# Supermicro SMT IPMI Check
+# 03.05.2018 by Roland Mueller
+#
+# Limited to 65 sensors (empty text will crash check)
+
+def inventory_supermicro_smt(info):
+    inventory = []
+    for sensor_id, sensor_value, sensor_warn, sensor_crit in info[0]:
+        sensor_id = int(sensor_id)
+
+        try:
+            sensor_name = info[1][0][sensor_id]
+            if float(sensor_value) > 0.0:
+                inventory.append((sensor_name, (float(sensor_warn), float(sensor_crit))))
+        except IndexError:
+            return inventory
+
+def check_supermicro_smt(item, params, info):
+    perfdata = []
+    for sensor_id, sensor_value, sensor_warn, sensor_crit in info[0]:
+        sensor_id = int(sensor_id)
+        sensor_value = float(sensor_value)
+        sensor_name = item
+        try:
+            if sensor_name == info[1][0][sensor_id]:
+                warn, crit = params
+
+                perfdata.append((sensor_name, sensor_value, warn, crit))
+                if sensor_value > sensor_crit:
+                    return (2, 'CRITICAL - Sensor is at {}'.format(sensor_value), perfdata)
+                elif sensor_value > sensor_warn:
+                    return (1, 'WARNING - Sensor is at {}'.format(sensor_value), perfdata)
+                else:
+                    return (0, 'OK - Sensor is at {}'.format(sensor_value), perfdata)
+                return (3, "UNKNOWN - Plugin error")
+        except IndexError:
+            return (3, "UNKNOWN - Plugin error")
+
+
+check_info['supermicro_smt'] = {
+    'check_function': check_supermicro_smt,
+    'service_description': "Sensor %s",
+    'inventory_function': inventory_supermicro_smt,
+    'has_perfdata': True,
+}
+
+# 1: sensor number, 2: sensor reading, 8: warn, 9: crit  13: hex text
+snmp_info['supermicro_smt'] = [('.1.3.6.1.4.1.21317.1.3.1', [ OID_END, '2', '8', '9'  ] ),
+                                ('.1.3.6.1.4.1.21317.1.3.1.13', range(1, 65) ) ]
+
+snmp_scan_functions['supermicro_smt'] = lambda oid: '.1.3.6.1.4.1.8072.3.2.10' in oid('.1.3.6.1.2.1.1.2').lower()
+

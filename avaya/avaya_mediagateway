@@ -1,0 +1,30 @@
+#!/usr/bin/python
+# -*- encoding: utf-8; py-indent-offset: 4 -*-
+#
+# Avaya MediaGateway Registered Status Check
+# 18.06.2015 by Roland Mueller
+#
+
+def inventory_avaya_mediagateway(info):
+    #debug
+    #import pprint ; pprint.pprint(info)
+    #return []
+    inventory = []
+    for state, ip in info:
+        inventory.append(("Registration", None))
+    return inventory
+
+
+def check_avaya_mediagateway(item, params, info):
+    for state, ip in info:
+        if state == "1":
+            return (0, "OK - Registered IP: "+ip)
+        else:
+            return (2, "CRITICAL - NOT Registered")
+    return (3, "UNKNOWN - No Registration Information found")
+
+check_info['avaya_mediagateway'] = (check_avaya_mediagateway, "Avaya MediaGateway %s", 0, inventory_avaya_mediagateway)
+
+snmp_info['avaya_mediagateway']  = ( ".1.3.6.1.4.1.6889.2.9.1.3", [ '1', '2' ] )
+
+snmp_scan_functions['avaya_mediagateway'] = lambda oid: "Avaya Inc.".lower() and "Media Gateway".lower() in oid(".1.3.6.1.2.1.1.1.0").lower()

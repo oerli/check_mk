@@ -1,0 +1,92 @@
+#!/usr/bin/python
+# -*- encoding: utf-8; py-indent-offset: 4 -*-
+#
+# Avaya MediaGateway Registered Status Check
+# 18.06.2015 by Roland Mueller
+#
+
+avaya_isdn_trunks_default_levels = (2, 1) # min. war/crit before reaching total use of trunks, calculatet logarithmic
+
+def inventory_avaya_isdn_trunks(info):
+    #print info
+    inventory = []
+    for trunk, description in info[0]:
+        for index, type in info[1]:
+            if index == trunk and type == "isdn":
+                inventory.append((trunk, "avaya_isdn_trunks_default_levels"))
+
+    return inventory
+
+
+def check_avaya_isdn_trunks(item, params, info):
+    status_used = 0
+    status_free = 0
+    status_fail = 0
+    status_unknown = 0
+    last_unknown_description = ""
+    total_lines = 0
+    # Check Station Status
+    for oid, status in info[2]:
+        trunk, station = oid.split('.')
+        if trunk == item:
+            total_lines += 1
+            if status == "in-service/idle":
+                status_free += 1
+            elif status == "in-service/active":
+                status_used += 1
+            elif status == "out-of-service-NE":
+                status_fail += 1
+            else:
+                status_unknown += 1
+                last_unknown_description = status
+    
+    # Calculate some magic (log) to warn/crit
+    warn, crit = params
+    warn_magic = int(warn * (math.log(total_lines) - 1))
+    crit_magic = int(crit * (math.log(total_lines) - 1))
+    #print total_lines, warn_magic, crit_magic
+    # t:60 w:6 c:3, t:30 w:4 c:2, t:<=12 w:2 c:1
+    # Assume crit can never be higher than warn
+    if warn_magic > warn:
+        warn = warn_magic
+        crit = crit_magic
+    
+    description = ""
+    # Get trunk description
+    for trunk, info in info[0]:
+        if trunk == item:
+            description = info
+
+    #perfdata = "idle={} active={} out_of_service={}".format(status_free, status_used, status_fail)
+    perfdata = [("Available", status_free, warn, crit, "", total_lines),
+                ("Used", status_used, "", "", "", total_lines),
+                ("Failed", status_fail, "", "", "", total_lines),
+                ]
+
+    if status_free <= crit:
+        return (2, "CRITICAL - Only {} phone lines available for {}".format(status_free, description), perfdata)
+    elif status_free <= warn:
+        return (1, "WARNING - {} phone lines available for {}".format(status_free, description), perfdata)
+    elif status_fail > 0:
+        return (1, "WARNING - {} failed phone of {} available for {}".format(status_fail, status_free, description), perfdata)
+    elif status_unknown > 0:
+        return (3, "UNKNOWN - Status {} in Implementation missing for {}".format(last_unknown_description, description), perfdata)
+    else:
+        return (0, "OK - For {} are {} phone lines available and {} in use".format(description, status_free, status_used), perfdata)
+
+
+
+check_info["avaya_isdn_trunks"] = {
+    "check_function": check_avaya_isdn_trunks,
+    "service_description": "Avaya ISDN Trunk %s",
+    "inventory_function": inventory_avaya_isdn_trunks,
+    "has_perfdata": True,
+}
+
+snmp_info["avaya_isdn_trunks"]  =    [ ( ".1.3.6.1.4.1.6889.2.73.8.1.10.1.1.4", [ OID_END, "" ] ), # trunk description
+                                ( ".1.3.6.1.4.1.6889.2.73.8.1.10.1.1.3", [ OID_END, "" ] ), # trunk type
+                                ( ".1.3.6.1.4.1.6889.2.73.8.1.26.3.1.5", [ OID_END, "" ] ), # oid = trunk.stations status
+                                ]
+
+snmp_scan_functions["avaya_isdn_trunks"] = lambda oid: "Avaya".lower() and "Communication Manager".lower() in oid(".1.3.6.1.2.1.1.1.0").lower()
+

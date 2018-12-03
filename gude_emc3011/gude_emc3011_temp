@@ -1,0 +1,47 @@
+#!/usr/bin/python
+# -*- encoding: utf-8; py-indent-offset: 4 -*-
+#
+# Gude EMC3011 Temperature
+# 08.07.2014 by Roland Mueller
+#
+gude_emc3011_temp_defaultlevels = (24.0, 28.0)
+
+def inventory_gude_emc3011_temp(info):
+    #debug
+    #import pprint ; pprint.pprint(info)
+    #return []
+    inventory = []
+    #for state in info:
+    for state in info:
+        if not(state[0] == "99990"):
+            inventory.append((None, state, gude_emc3011_temp_defaultlevels))
+    return inventory
+
+
+def check_gude_emc3011_temp(item, params, info):
+    warn, crit = params
+    for state in info:
+        temp = float(state[0])/10.0
+        perfdata = [("temp", temp, warn, crit)]
+        if temp == 9999.0:
+            return (3, "UNKNOWN - Temperature sensor is not connected")
+        elif temp == 9998.0:
+            return (1, "WARNING - Temperature sensor is not compatible")
+        elif temp >= crit:
+            return (2, "CRITICAL - Temperature is %.1f" % temp, perfdata)
+        elif temp >= warn:
+            return (1, "WARNING - Temperature is %.1f" % temp, perfdata)
+        else:
+            return (0, "OK - Temperature is %.1f" % temp, perfdata)
+    return (3, "UNKNOWN - No Information about Temperature", perfdata)
+
+check_info['gude_emc3011_temp'] = {
+    'check_function': check_gude_emc3011_temp,
+    'service_description': "Temperature",
+    'inventory_function': inventory_gude_emc3011_temp,
+    'has_perfdata': True,
+}
+
+snmp_info['gude_emc3011_temp']  = ( ".1.3.6.1.4.1.28507.3.1", ['6'] )
+
+snmp_scan_functions['gude_emc3011_temp'] = lambda oid: "EMC Professional NET".lower() in oid(".1.3.6.1.2.1.1.1.0").lower()

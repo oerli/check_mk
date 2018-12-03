@@ -1,0 +1,53 @@
+#!/usr/bin/python
+# -*- encoding: utf-8; py-indent-offset: 4 -*-
+#
+# Avaya Session Border Controller
+# 30.07.2018 by Roland Mueller
+#
+
+avaya_sip_default_values = {'active_registrations': (0, 0), 'active_calls': (25, 30)}
+
+def inventory_avaya_sip(info):
+    if info:
+        return [(None, 'avaya_sip_default_values')]
+
+
+def check_avaya_sip(item, params, info):
+    active_registrations_warn, active_registrations_crit = params['active_registrations']
+    active_calls_warn, active_calls_crit = params['active_calls']
+
+    if len(info) < 1:
+        # no information available, snmp did't worked, cluster not active
+        active_registrations = 0
+        active_calls = 0
+    else:
+        active_registrations, active_calls = info[0]
+        active_registrations = int(active_registrations)
+        active_calls = int(active_calls)
+
+
+    #perfdata = "idle={} active={} out_of_service={}".format(status_free, status_used, status_fail)
+    perfdata = [("Registrations", active_registrations, active_registrations_warn, active_registrations_crit),
+                ("Calls", active_calls, active_calls_warn, active_calls_crit),
+                ]
+
+    if active_calls >= active_calls_crit or active_registrations <= active_registrations_crit:
+        return (2, "CRITICAL - {} active calls and {} active registrations".format(active_calls, active_registrations), perfdata)
+    elif active_calls >= active_calls_warn or active_registrations <= active_registrations_warn:
+        return (1, "WARNING - {} active calls and {} active registrations".format(active_calls, active_registrations), perfdata)
+    else:
+        return (0, "OK - {} active calls and {} active registrations".format(active_calls, active_registrations), perfdata)
+
+
+check_info["avaya_sip"] = {
+    "check_function": check_avaya_sip,
+    "service_description": "Avaya SIP",
+    "inventory_function": inventory_avaya_sip,
+    "has_perfdata": True,
+}
+
+snmp_info["avaya_sip"]  =    ( ".1.3.6.1.4.1.6889.2.77.1.3.1", [ "9", "10" ] ) # active sip registrations, active sip calls
+
+
+snmp_scan_functions["avaya_sip"] = lambda oid: "Avaya".lower() and "Session Border Controller for Enterprise".lower() in oid(".1.3.6.1.2.1.1.1.0").lower()
+

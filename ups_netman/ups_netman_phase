@@ -1,0 +1,51 @@
+#!/usr/bin/python
+# -*- encoding: utf-8; py-indent-offset: 4 -*-
+#
+# UPS NetMan 100 Check
+# 16.04.2018 by Roland Mueller
+#
+
+ups_netman_phase_default_values = {'load': (60, 80), 'amps': (12, 14), 'voltage': (225, 220)}
+
+def inventory_ups_netman_phase(info):
+    inventory = []
+    for phase in info:
+        inventory.append((phase[0], ups_netman_phase_default_values))
+
+    return inventory
+
+def check_ups_netman_phase(item, params, info):
+
+    for phase in info:
+        if phase[0] == item[0]:
+            load_warn, load_crit = params['load']
+            amps_warn, amps_crit = params['amps']
+            voltage_warn, voltage_crit = params['voltage']
+            
+            voltage = int(phase[1])
+            amps = float(phase[2]) / 10
+            load = int(phase[3])
+
+            perfdata = [('load', load, load_warn, load_crit, 0, 100),
+                        ('current', amps, amps_warn, amps_crit, 0, 16),
+                        ('voltage', voltage, voltage_warn, voltage_crit, 200, 250)]
+
+            if load > load_crit or voltage < voltage_crit:
+                return (2, 'CRITICAL - Phase is at {}V / {}A, load is {}%'.format(voltage, amps, load), perfdata)
+            elif load > load_warn or voltage < voltage_warn:
+                return (1, 'WARNING - Phase is at {}V / {}A, load is {}%'.format(voltage, amps, load), perfdata)
+            else:
+                return (0, 'OK - Phase is at {}V / {}A, load is {}%'.format(voltage, amps, load), perfdata)
+            return (3, "UNKNOWN - Plugin error")
+
+check_info['ups_netman_phase'] = {
+    'check_function': check_ups_netman_phase,
+    'service_description': "Phase Info",
+    'inventory_function': inventory_ups_netman_phase,
+    'has_perfdata': True,
+}
+
+                                  # phase index, phase voltage, phase load percentage
+snmp_info['ups_netman_phase'] = ('.1.3.6.1.2.1.33.1.4.4.1', [ '1', '2', '3', '5' ])
+
+snmp_scan_functions['ups_netman_phase'] = lambda oid: 'NetMan 100 plus'.lower() in oid('.1.3.6.1.2.1.1.1').lower()

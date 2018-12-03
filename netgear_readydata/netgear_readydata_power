@@ -1,0 +1,32 @@
+#!/usr/bin/python
+# -*- encoding: utf-8; py-indent-offset: 4 -*-
+#
+# NetGear ReadyData Power Check
+# 27.03.2014 by Roland Mueller
+#
+
+def inventory_netgear_readydata_power(info):
+    #debug
+    #import pprint ; pprint.pprint(info)
+    #return []
+    inventory = []
+    for number, state in info:
+        if state == "on":
+            inventory.append((number, None))
+    return inventory
+
+
+def check_netgear_readydata_power(item, params, info):
+    for number, state in info:
+        if number == item:
+            if state == "on":
+                return (0, "OK - PowerSupply "+number+" is "+state)
+            else:
+                return (2, "CRITICAL - PowerSupply "+number+" is "+state)
+    return (3, "UNKNOWN - PowerSupply not found")
+
+check_info['netgear_readydata_power'] = (check_netgear_readydata_power, "POWER %s", 0, inventory_netgear_readydata_power)
+
+snmp_info['netgear_readydata_power']  = ( ".1.3.6.1.4.1.4526.22.8.1", [ '1', '3' ] )
+
+snmp_scan_functions['netgear_readydata_power'] = lambda oid: "ReadyDATA OS".lower() in oid(".1.3.6.1.2.1.1.1.0").lower()

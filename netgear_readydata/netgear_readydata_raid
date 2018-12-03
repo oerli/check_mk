@@ -1,0 +1,32 @@
+#!/usr/bin/python
+# -*- encoding: utf-8; py-indent-offset: 4 -*-
+#
+# NetGear ReadyData RAID Check
+# 27.03.2014 by Roland Mueller
+#
+
+def inventory_netgear_readydata_raid(info):
+    #debug
+    #import pprint ; pprint.pprint(info)
+    #return []
+    inventory = []
+    for number, type, raid, state in info:
+        if state == "ONLINE":
+            inventory.append((number, None))
+    return inventory
+
+
+def check_netgear_readydata_raid(item, params, info):
+    for number, type, raid, state in info:
+        if number == item:
+            if state == "ONLINE":
+                return (0, "OK - "+type+" is " + state)
+            else:
+                return (2, "CRITICAL - "+type+" is " + state)
+    return (3, "UNKNOWN - RAID not found")
+
+check_info['netgear_readydata_raid'] = (check_netgear_readydata_raid, "RAID %s", 0, inventory_netgear_readydata_raid)
+
+snmp_info['netgear_readydata_raid']  = ( ".1.3.6.1.4.1.4526.22.7.1", [ '1', '2', '3', '4' ] )
+
+snmp_scan_functions['netgear_readydata_raid'] = lambda oid: "ReadyDATA OS".lower() in oid(".1.3.6.1.2.1.1.1.0").lower()

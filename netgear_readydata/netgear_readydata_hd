@@ -1,0 +1,38 @@
+#!/usr/bin/python
+# -*- encoding: utf-8; py-indent-offset: 4 -*-
+#
+# NetGear ReadyData HD Check
+# 27.03.2014 by Roland Mueller
+#
+
+def inventory_netgear_readydata_hd(info):
+    #debug
+    #import pprint ; pprint.pprint(info)
+    #return []
+    inventory = []
+    for number, serial, type, state, celsius in info:
+        if state == "ONLINE" or state == "AVAIL":
+            inventory.append((number, None))
+    return inventory
+
+
+def check_netgear_readydata_hd(item, params, info):
+    for number, serial, type, state, celsius in info:
+        if number == item:
+            perfdata = [("temp", celsius)]
+            if state == "ONLINE" or state == "AVAIL":
+                return (0, "OK - disk is " + state + ", Type: " + type + ", ZFS: " + serial, perfdata)
+            else:
+                return (2, "CRITICAL - disk is " + state, perfdata)
+    return (3, "UNKNOWN - DISK not found")
+
+check_info['netgear_readydata_hd'] = {
+    'check_function': check_netgear_readydata_hd,
+    'service_description': "DISK %s",
+    'inventory_function': inventory_netgear_readydata_hd,
+    'has_perfdata': True,
+}
+
+snmp_info['netgear_readydata_hd']  = ( ".1.3.6.1.4.1.4526.22.3.1", [ '1', '2', '5', '9', '10' ] )
+
+snmp_scan_functions['netgear_readydata_hd'] = lambda oid: "ReadyDATA OS".lower() in oid(".1.3.6.1.2.1.1.1.0").lower()

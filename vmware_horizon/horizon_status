@@ -1,0 +1,50 @@
+#!/usr/bin/python
+# -*- encoding: utf-8; py-indent-offset: 4 -*-
+#
+# 30.05.2018 by Roland Mueller
+# check_mk horizon_status parser
+# the inventory function (dummy)
+
+# [[pool_name, enabled, provisoning, machines, sessions]]
+# [['Virtual-Desktop', 'True', 'True', '96', '74'], ['Virtual-Desktop-Test', 'True', 'True', '6', '0']]
+horizon_status_default_levels = (5, 3)
+
+def inventory_horizon_status(info):
+    inventory = []
+    warn, crit = horizon_status_default_levels
+    for pool in info: 
+        name, enabled, provisioning, machines, sessions = pool
+        inventory.append((name, (warn, crit)))
+    #print info
+    return inventory # return empty list: nothing found
+
+# the check function (dummy)
+def check_horizon_status(item, params, info):
+    warn, crit = params
+
+    for pool in info:
+        name, enabled, provisioning, machines, sessions = pool
+        machines = int(machines)
+        sessions = int(sessions)
+        perfdata = [('free', machines - sessions, warn, crit), ('total', machines), ('active', sessions)]
+        if name == item:
+            if enabled == 'False':
+                return 2, 'Pool {} is disabled(!!)'.format(name), perfdata
+            elif provisioning == 'False':
+                return 2, 'Pool {} is enabled but provisioning is disabled(!!)'.format(name), perfdata
+            elif machines - sessions < crit:
+                return 2, 'Pool {} has only {} (!!) machines left'.format(name, machines - sessions), perfdata
+            elif machines - sessions < warn:
+                return 1, 'Pool {} has only {} (!) machines left'.format(name, machines - sessions), perfdata
+            else:
+                return 0, 'Pool {} has {} of {} machines free'.format(name, machines - sessions, machines), perfdata
+
+    return 3, "Sorry - not implemented"
+
+# declare the check to Check_MK
+check_info["horizon_status"] = {
+    'check_function':            check_horizon_status,
+    'inventory_function':        inventory_horizon_status,
+    'service_description':       'Horizon Pool %s',
+    'has_perfdata':              True,
+}

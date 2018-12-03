@@ -1,0 +1,46 @@
+#!/usr/bin/python
+# -*- encoding: utf-8; py-indent-offset: 4 -*-
+#
+# Avaya MediaGateway Registered Status Check
+# 18.06.2015 by Roland Mueller
+#
+
+avaya_licenses_default_levels = (10, 5) # war/crit before reaching total of licenses
+
+def inventory_avaya_licenses(info):
+    #debug
+    #import pprint ; pprint.pprint(info)
+    #return []
+    inventory = []
+    for used_lic, total_lic in info:
+        inventory.append(("Licenses", "avaya_licenses_default_levels"))
+    return inventory
+
+
+def check_avaya_licenses(item, params, info):
+    warn, crit = params
+    for used_lic, total_lic in info:
+	used = int(used_lic)
+	total = int(total_lic)
+	perfdata = [("Free", total-used, warn, crit )]
+        if total == 0:
+    	    return (3, "UNKNOWN - No Licenses found")
+        elif total - used > warn:
+            return (0, "OK - Licenses: "+total_lic+" Used: "+used_lic+" Free: "+str(total-used), perfdata)
+        elif total - used <= crit:
+            return (2, "CRITICAL - Licenses: "+total_lic+" Used: "+used_lic+" Free: "+str(total-used), perfdata)
+        elif total - used <= warn:
+            return (1, "WARNING - Licenses: "+total_lic+" Used: "+used_lic+" Free: "+str(total-used), perfdata)
+    return (3, "UNKNOWN - No Licenses found")
+
+check_info['avaya_licenses'] = {
+    'check_function': check_avaya_licenses,
+    'service_description': "Avaya",
+    'inventory_function': inventory_avaya_licenses,
+    'has_perfdata': True,
+}
+
+snmp_info['avaya_licenses']  = ( ".1.3.6.1.4.1.6889.2.73.8.1.20", ['4', '6'] )
+
+snmp_scan_functions['avaya_licenses'] = lambda oid: "Avaya".lower() and "Communication Manager".lower() in oid(".1.3.6.1.2.1.1.1.0").lower()
+

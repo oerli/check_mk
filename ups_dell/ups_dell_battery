@@ -1,0 +1,74 @@
+#!/usr/bin/python
+# -*- encoding: utf-8; py-indent-offset: 4 -*-
+#
+# Dell UPS Rack/Tower 2700W HV Check
+# 18.04.2018 by Roland Mueller
+#
+
+ups_dell_battery_default_values = {'time': (60, 20), 'health': (95, 90)}
+
+def inventory_ups_dell_battery(info):
+    if info:
+        return [(None, 'ups_dell_battery_default_values')]
+
+def check_ups_dell_battery(item, params, info):
+    time_warn, time_crit = params['time']
+    health_warn, health_crit = params['health']
+
+    battery_infos, phase_loads = info
+    status = int(battery_infos[0][0])
+    time = int(battery_infos[0][1])
+    health = int(battery_infos[0][2])
+    battery_amps = float(battery_infos[0][3]) / 10
+    temp = int(battery_infos[0][4])
+    load = 0
+    voltage = 0
+    output_amps = 0
+    for phase in phase_loads:
+        voltage = voltage + int(phase[0])
+        output_amps = output_amps + float(phase[1]) / 10
+        load = load + int(phase[1])
+        
+    voltage = voltage / len(phase_loads)
+    load = load / len(phase_loads)
+
+    perfdata = [("capacity", health, health_warn, health_crit, 0, 100),
+                ("systemp", temp, '', 40, '', ''),
+                ("batcurr", battery_amps, '', '', 0, ''),
+                ("voltage", voltage, '', 220 , 0, ''),
+                ("current", output_amps, '', '', 0, ''),
+                ("runtime", time, time_warn, time_crit, '', ''),
+                ("OutputLoad", load, '', '', 0, 100),
+                ]
+    if status == 2:
+        status_text = 'Battery is in good state'
+    elif status == 3:
+        status_text = 'Battery is low (!)'
+    elif status == 4:
+        status_text = 'Battery is unable to use (!!)'
+    else:
+        status_text = 'Battery state is unknown (!)'
+
+    if status == 4 or time < time_crit or health < health_crit:
+       return (2, 'CRITICAL - {} has {} minutes left, health is at {}% and voltage is at {}V'.format(status_text, time, health, (voltage)), perfdata)
+    elif status == 3 or time < time_warn or health < health_warn:
+       return (1, 'WARNING - {} has {} minutes left, health is at {}% and voltage is at {}V'.format(status_text, time, health, (voltage)), perfdata)
+    elif status == 2:
+       return (0, 'OK - {} has {} minutes left, health is at {}% and voltage is at {}V'.format(status_text, time, health, (voltage)), perfdata)
+    else:
+        return (3, "UNKNOWN - {}".format(status_text))
+    return (3, 'UNKNOWN - Check plugin')
+
+check_info['ups_dell_battery'] = {
+    'check_function': check_ups_dell_battery,
+    'service_description': "Battery Info",
+    'inventory_function': inventory_ups_dell_battery,
+    'has_perfdata': True,
+}
+
+                                  # Battery life time in min, health in %, voltage
+snmp_info['ups_dell_battery'] = [('.1.3.6.1.2.1.33.1.2', ['1', '3', '4', '6', '7']),
+                                   ('.1.3.6.1.2.1.33.1.4.4.1', [ '2', '3', '5' ]),
+                                   ]
+
+snmp_scan_functions['ups_dell_battery'] = lambda oid: 'Dell UPS Rack/Tower 2700W HV'.lower() in oid('.1.3.6.1.2.1.1.1').lower()

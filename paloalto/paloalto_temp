@@ -1,0 +1,29 @@
+#!/usr/bin/python
+# -*- encoding: utf-8; py-indent-offset: 4 -*-
+#
+# PaloAlto Temperatur Check
+# 08.08.2014 by Roland Mueller
+#
+
+paloalto_temp_default_levels = (55, 65)
+
+def inventory_paloalto_temp(info):
+    return [ (x[0], paloalto_temp_default_levels) for x in info if x[2] == "(C)"]
+
+def check_paloalto_temp(item, params, info):
+    for line in info:
+        if line[0] == item:
+            return check_temperature(float(line[1]), params)
+
+check_info['paloalto_temp'] = {
+    'check_function': check_paloalto_temp,
+    'service_description': "Temp %s",
+    'group': "temperature",
+    'inventory_function': inventory_paloalto_temp,
+    'has_perfdata': True,
+    'includes': [ "temperature.include" ],
+}
+
+snmp_info['paloalto_temp']  = ( ".1.3.6.1.2.1.99.1.1.1", [ OID_END, '4', '6' ] )
+
+snmp_scan_functions['paloalto_temp'] = lambda oid: "Palo Alto Networks".lower() in oid(".1.3.6.1.2.1.1.1.0").lower()

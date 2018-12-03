@@ -1,0 +1,46 @@
+#!/usr/bin/python
+# -*- encoding: utf-8; py-indent-offset: 4 -*-
+#
+# PaloAlto Temperatur Check
+# 08.08.2014 by Roland Mueller
+#
+
+paloalto_fan_default_levels = (1000, 20000)
+
+def inventory_paloalto_fan(info):
+    #debug
+    #import pprint ; pprint.pprint(info)
+    #return []
+    inventory = []
+    for oid, rpm, description in info:
+        if description == "rpm":
+            inventory.append((oid, "paloalto_fan_default_levels"))
+    return inventory
+
+
+def check_paloalto_fan(item, params, info):
+    min, max = params
+    for oid, rpm, description in info:
+        if oid == item:
+            perfdata = [("temp", rpm)]
+            if int(rpm) == 0:
+                return (2, "CRITICAL - Fan is not working", perfdata)
+            elif int(rpm) == 1:
+                return (0, "OK - Fan is working", perfdata)
+            elif int(rpm) >= max:
+                return (1, "WARN - Fan is over max. ("+max+") with " + rpm + " rpm", perfdata)
+            elif int(rpm) <= min:
+                return (1, "WARN - Fan is under min. ("+min+") with " + rpm + " rpm", perfdata)
+            return (0, "OK - Fan has " + rpm + " rpm", perfdata)
+    return (3, "UNKNOWN - Fan not found")
+
+check_info['paloalto_fan'] = {
+    'check_function': check_paloalto_fan,
+    'service_description': "Fan %s",
+    'inventory_function': inventory_paloalto_fan,
+    'has_perfdata': True,
+}
+
+snmp_info['paloalto_fan']  = ( ".1.3.6.1.2.1.99.1.1.1", [ OID_END, '4', '6' ] )
+
+snmp_scan_functions['paloalto_fan'] = lambda oid: "Palo Alto Networks".lower() in oid(".1.3.6.1.2.1.1.1.0").lower()

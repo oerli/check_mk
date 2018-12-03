@@ -1,0 +1,39 @@
+#!/usr/bin/python
+# -*- encoding: utf-8; py-indent-offset: 4 -*-
+#
+# check for windows message queue lenght
+# 03.07.15 by Roland Mueller
+
+# the inventory function (dummy)
+def inventory_msmq_queue(info):
+   inventory = []
+
+   for line in info:
+       name = line[0]
+       length = line[1]
+       if name != "":
+           inventory.append( (name, length) )
+
+   return inventory
+
+# the check function (dummy)
+def check_msmq_queue(item, params, info):
+   for line in info:
+       if line[0] == item:
+           length = int(line[1])
+           perfdata = [("count", length)]
+           if length > 50:
+               return (2, "Queue length is %d" % length, perfdata)
+           elif length > 25:
+               return (1, "Queue length is %d" % length, perfdata)
+           else:
+               return (0, "Queue length is %d" % length, perfdata)
+   return (3, "Sorry - not implemented")
+
+# declare the check to Check_MK
+check_info["msmq_queue"] = {
+    'check_function':            check_msmq_queue,
+    'inventory_function':        inventory_msmq_queue,
+    'service_description':       'MSMQ: %s',
+    'has_perfdata':              True,
+}

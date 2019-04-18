@@ -17,7 +17,7 @@ def check_polycom_realpresence(item, params, info):
     #active_registrations_warn, active_registrations_crit = params['active_registrations']
     #active_calls_warn, active_calls_crit = params['active_calls']
 
-    version, model, serial, status_summary, hardware_status, mic_status, camera_status, panel_status = info[0]
+    version, model, serial, status_summary, hardware_status, mic_status, camera_status, panel_status, sip_status, active_conference = info[0]
 
 
     #perfdata = "idle={} active={} out_of_service={}".format(status_free, status_used, status_fail)
@@ -64,13 +64,22 @@ def check_polycom_realpresence(item, params, info):
     elif panel_status == "2":
         description = " ".join((description, "Touch Panel: OK"))
 
-    if status_summary == "3" or hardware_status == "3" or panel_status == "3" or camera_status == "3" or mic_status == "3":
-        return (2, " ".join(("CRITICAL - " , description)))
-    elif status_summary == "1" or hardware_status == "1" or panel_status == "1":
-        return (1, " ".join(("WARNING - ", description)))
+    # Panel status
+    if sip_status == "3":
+        description = " ".join((description, "SIP Registration: FAILED(!!)"))
+    elif sip_status == "1":
+        description = " ".join((description, "SIP Registration: DISABLED(!)"))
+    elif sip_status == "2":
+        description = " ".join((description, "SIP Registration: OK"))
+
+
+    if status_summary == "3" or hardware_status == "3" or panel_status == "3" or camera_status == "3" or mic_status == "3" or sip_status == "3":
+        return (2, " ".join(("CRITICAL - " , description)), [("active", active_conference)])
+    elif status_summary == "1" or hardware_status == "1" or panel_status == "1"  or sip_status == "1":
+        return (1, " ".join(("WARNING - ", description)), [("active", active_conference)])
         #return (1, "WARNING - {} active calls and {} active registrations".format(active_calls, active_registrations), perfdata)
     elif status_summary == "2" or hardware_status == "2":
-        return (0, " ".join(("OK - ", description)))
+        return (0, " ".join(("OK - ", description)), [("active", active_conference)])
         #return (0, "OK - {} active calls and {} active registrations".format(active_calls, active_registrations), perfdata)
     else:
         return (3, "UNKNOWN - Implementation missing")
@@ -81,10 +90,10 @@ check_info["polycom_realpresence"] = {
     "check_function": check_polycom_realpresence,
     "service_description": "PolyCom Status",
     "inventory_function": inventory_polycom_realpresence,
-    "has_perfdata": False,
+    "has_perfdata": True,
 }
 
-snmp_info["polycom_realpresence"]  =    ( ".1.3.6.1.4.1.13885.101.1", [ "1.1", "1.4", "1.5", "1.6", "3.1", "3.5.1", "3.6.1", "3.11.1" ] ) # version, type, serial number, status (1disabled/2OK/3failed), hardware_stauts, mic_status, camera_status, panel_status
+snmp_info["polycom_realpresence"]  =    ( ".1.3.6.1.4.1.13885.101.1", [ "1.1", "1.4", "1.5", "1.6", "3.1", "3.5.1", "3.6.1", "3.11.1", "2.8.1", "5.1" ] ) # version, type, serial number, status (1disabled/2OK/3failed), hardware_stauts, mic_status, camera_status, panel_status, sip_status, active_conference
 
 snmp_scan_functions["polycom_realpresence"] = lambda oid: "Videoconferencing Device".lower() in oid(".1.3.6.1.2.1.1.1.0").lower()
 

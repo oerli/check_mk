@@ -15,7 +15,6 @@ from lxml import etree
 class Printer:
     def __init__(self):
         self.serialNumber = ""
-        self.deviceType = ""
         self.ipAddress = ""
         self.deviceId = ""
         self.deviceStatus = "Ok"
@@ -23,8 +22,8 @@ class Printer:
         self.connectionStatus = "Unknown"
         self.connectionDescription = ""
         self.time = 0
-        self.critTime = 28800
-        self.warnTime = 1800
+        self.critTime = 172800
+        self.warnTime = 57600
 
 def get_data(connect="", user="", password="", limit=""):
     import requests
@@ -60,11 +59,11 @@ def get_data(connect="", user="", password="", limit=""):
         for element in elements:
             if element.attrib['name'] == 'SerialNumber':
                 printer.serialNumber = element.text
-            elif element.attrib['name'] == 'DeviceType':
-                printer.deviceType = element.text.replace(" ", "_")
             elif element.attrib['name'] == 'DeviceID':
                 printer.deviceId = element.text
                 if element.text == "MiCard - EEPROM error FW Update necessary!":
+                    printer.deviceStatus = "Warning"
+                elif element.text == "not available":
                     printer.deviceStatus = "Warning"
             elif element.attrib['name'] == 'IPAddress':
                 printer.ipAddress = element.text
@@ -100,7 +99,7 @@ def evaluate_data(printers=[], descriptions={}):
         if printer.connectionStatus == "Ok" and printer.timeStatus == "Ok" and printer.deviceStatus == "Ok":
             message = "0 MEAP_" + printer.serialNumber + " run_age=" + str(printer.time) + ";" + str(printer.warnTime) + ";" + str(printer.critTime) + ";; " + description + " is connected"  
         elif printer.deviceStatus == "Warning":
-            message = "1 MEAP_" + printer.serialNumber + " run_age=" + str(printer.time) + ";" + str(printer.warnTime) + ";" + str(printer.critTime) + ";; " + description + " (" + printer.ipAddress + ") Card Reader Error (!!)"
+            message = "1 MEAP_" + printer.serialNumber + " run_age=" + str(printer.time) + ";" + str(printer.warnTime) + ";" + str(printer.critTime) + ";; " + description + " (" + printer.ipAddress + ") Card Reader Error (!)"
         elif printer.connectionStatus == "Warning":
             if printer.connectionDescription == "MOMLM=connected==" or printer.connectionDescription == "MOMLM=connected=LMCARDTYPELOGIN=Card Type Login":
                 message = "1 MEAP_" + printer.serialNumber + " run_age=" + str(printer.time) + ";" + str(printer.warnTime) + ";" + str(printer.critTime) + ";; " + description + " (" + printer.ipAddress + ") Secure Scan Print Application(!) not loaded"
